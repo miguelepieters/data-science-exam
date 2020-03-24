@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+
+<script src="https://miniature.earth/miniature.earth.js"></script>
+
+<script>
+
+var markers = [];
+var lines = [];
+var pinIndex = 0;
+var pinTime = 0;
+var pinsPerSec = 25;
+var startMarker, endMarker;
+
+function getUrlVars() {
+	var url_string = window.location.href;
+	var url = new URL(url_string);
+	var query = url.searchParams.get("query");
+	return query;
+}
+
+const locations = JSON.parse(getUrlVars());
+
+window.addEventListener( "earthjsload", function() {
+	myearth = new Earth( document.getElementById('myearth'), {
+
+		location: { lat: 40.785091, lng: -73.968285 },
+		light: 'none',
+		mapLandColor : '#fff',
+		mapSeaColor : '#66d8ff',
+		mapBorderColor : '#66d8ff',
+		mapBorderWidth : 0.4
+
+	} );
+
+	myearth.addEventListener( "ready", function() {
+
+        this.startAutoRotate();
+
+		for ( var i=0; i < locations.length; i++ ) {
+
+			var marker = this.addMarker( {
+
+				mesh : ["Pin","Needle"],
+				color: '#00a8ff',
+				color2: '#9f9f9f',
+				offset: -0.2,
+				location : { lat: locations[i][1], lng: locations[i][2] },
+				scale: 0.01,
+				visible: false,
+				hotspotRadius : 0.4,
+				hotspotHeight : 1.5,
+
+				// custom properties
+				index: i,
+				foo : 'bar'
+
+			} );
+
+            var line = {
+	            color: 'red',
+	            opacity: 1,
+	            hairline: true,
+	            offset: 0.5
+
+            };
+
+            line.locations = [ { lat: locations[i][1], lng: locations[i][2] }, { lat: locations[i][3], lng: locations[i][4]} ];
+            lines.push(line);
+
+			// pin events
+
+			marker.addEventListener('mouseover', function() {
+
+				document.getElementById('tip-layer').style.opacity = 1;
+				document.getElementById('tip-big').innerHTML = 'BIG';
+				document.getElementById('tip-small').innerHTML = 'SMALL';
+
+				this.color = 'red';
+
+			});
+
+			marker.addEventListener('mouseout', function() {
+
+				if ( this != startMarker && this != endMarker ) {
+					this.color = '#00a8ff';
+				}
+				document.getElementById('tip-layer').style.opacity = 0;
+
+			});
+
+			marker.addEventListener('click', function() {
+
+				//if ( ! startMarker ) {
+				//	selectStartMarker( this );
+				//} else {
+				//	selectEndMarker( this );
+				//}
+
+			});
+
+			markers.push( marker );
+
+		}
+
+		restorePins();
+
+	} );
+
+	function restorePins() {
+
+        pinIndex = 0;
+        pinTime = myearth.deltaTime;
+
+        var restoreOnePin = function() {
+
+            pinTime += myearth.deltaTime;
+            if ( pinTime > pinsPerSec ) {
+                pinTime -= pinsPerSec;
+            } else {
+                return;
+            }
+
+            if ( ! markers[ pinIndex ].visible ) {
+
+                markers[ pinIndex ].visible = true;
+                markers[ pinIndex ].hotspot = true;
+                markers[ pinIndex ].animate( 'scale', 1, { duration: 200, easing: 'out-back' } );
+	            myearth.addLine(lines[ pinIndex ]);
+            } else {
+
+                // skip wait time
+                pinTime = pinsPerSec;
+
+            }
+
+            if ( ++ pinIndex >= markers.length ) {
+                myearth.removeEventListener( "update", restoreOnePin );
+            }
+
+        };
+
+        myearth.addEventListener( "update", restoreOnePin );
+
+    }
+});
+</script>
+
+</head>
+
+<body>
+<div id="myearth" class="little-earth" style="max-height: 500px;">
+
+			<div id="tip-layer">
+				<div>
+					<div id="tip-big"></div>
+					<div id="tip-small"></div>
+				</div>
+			</div>
+		</div>
+</body>
